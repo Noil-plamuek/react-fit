@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Dumbbell, Cookie, ChevronLeft, ChevronRight, CalendarDays, LayoutGrid } from "lucide-react";
+import { Dumbbell, Cookie, Droplets, ChevronLeft, ChevronRight, CalendarDays, LayoutGrid } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 /* ---------------------------------------------------------------
@@ -13,6 +13,9 @@ const CARD = "#FFFFFF";
 
 const EXERCISE = { key: "exercise", label: "Exercise", color: "#7C9885", tint: "#E7EFE8", Icon: Dumbbell };
 const DESSERT = { key: "dessert", label: "Dessert", color: "#D66B84", tint: "#F7E6E9", Icon: Cookie };
+const WATER = { key: "water", label: "Water", color: "#4A90E2", tint: "#E3EEFA", Icon: Droplets };
+
+const CATEGORIES = [EXERCISE, DESSERT, WATER];
 
 const MEMBERS = [
   { id: "KIM", color: "#9B8AC4", tint: "#EFEAF6" },
@@ -96,11 +99,12 @@ function MemberDot({ color, size = 10 }) {
    Week view
 ------------------------------------------------------------------*/
 function MemberWeekCard({ member, weekDates, records, onToggle, todayKey }) {
-  const totals = { exercise: 0, dessert: 0 };
+  const totals = { exercise: 0, dessert: 0, water: 0 };
   weekDates.forEach((d) => {
     const r = records[toKey(d)]?.[member.id];
     if (r?.exercise) totals.exercise++;
     if (r?.dessert) totals.dessert++;
+    if (r?.water) totals.water++;
   });
 
   return (
@@ -126,6 +130,10 @@ function MemberWeekCard({ member, weekDates, records, onToggle, todayKey }) {
             <DESSERT.Icon size={13} color={DESSERT.color} strokeWidth={2.4} />
             <span style={{ color: INK, fontWeight: 600 }}>{totals.dessert}</span>
           </span>
+          <span className="flex items-center gap-1">
+            <WATER.Icon size={13} color={WATER.color} strokeWidth={2.4} />
+            <span style={{ color: INK, fontWeight: 600 }}>{totals.water}</span>
+          </span>
         </div>
       </div>
 
@@ -144,7 +152,7 @@ function MemberWeekCard({ member, weekDates, records, onToggle, todayKey }) {
         })}
       </div>
 
-      {[EXERCISE, DESSERT].map((cat) => (
+      {CATEGORIES.map((cat) => (
         <div key={cat.key} className="grid grid-cols-8 items-center" style={{ marginTop: 6 }}>
           <cat.Icon size={15} color={cat.color} strokeWidth={2.3} />
           {weekDates.map((d) => {
@@ -171,13 +179,14 @@ function MemberWeekCard({ member, weekDates, records, onToggle, todayKey }) {
 
 function WeekSummary({ weekDates, records }) {
   const rows = MEMBERS.map((m) => {
-    let ex = 0, de = 0;
+    let ex = 0, de = 0, wa = 0;
     weekDates.forEach((d) => {
       const r = records[toKey(d)]?.[m.id];
       if (r?.exercise) ex++;
       if (r?.dessert) de++;
+      if (r?.water) wa++;
     });
-    return { ...m, ex, de };
+    return { ...m, ex, de, wa };
   });
 
   return (
@@ -195,6 +204,7 @@ function WeekSummary({ weekDates, records }) {
             <div className="flex flex-col gap-1.5">
               <BarRow icon={EXERCISE.Icon} color={EXERCISE.color} value={r.ex} max={7} suffix="workouts" />
               <BarRow icon={DESSERT.Icon} color={DESSERT.color} value={r.de} max={7} suffix="desserts" />
+              <BarRow icon={WATER.Icon} color={WATER.color} value={r.wa} max={7} suffix="water days" />
             </div>
           </div>
         ))}
@@ -211,7 +221,7 @@ function BarRow({ icon: Icon, color, value, max = 7, suffix }) {
       <div style={{ flex: 1, height: 7, background: "#F3EFE7", borderRadius: 4, overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 300ms ease" }} />
       </div>
-      <span style={{ fontSize: 12, color: INK_SOFT, width: 80, flexShrink: 0 }}>
+      <span style={{ fontSize: 12, color: INK_SOFT, width: 85, flexShrink: 0 }}>
         {value}/7 {suffix}
       </span>
     </div>
@@ -226,17 +236,18 @@ function MonthView({ year, month, records }) {
   const weeksInMonth = Math.max(1, Math.round(nDays / 7));
 
   const stats = MEMBERS.map((m) => {
-    let ex = 0, de = 0;
+    let ex = 0, de = 0, wa = 0;
     for (let day = 1; day <= nDays; day++) {
       const key = toKey(new Date(year, month, day));
       const r = records[key]?.[m.id];
       if (r?.exercise) ex++;
       if (r?.dessert) de++;
+      if (r?.water) wa++;
     }
-    return { ...m, ex, de, exAvg: ex / weeksInMonth, deAvg: de / weeksInMonth };
+    return { ...m, ex, de, wa, exAvg: ex / weeksInMonth, deAvg: de / weeksInMonth, waAvg: wa / weeksInMonth };
   });
 
-  const maxVal = Math.max(1, ...stats.map((s) => Math.max(s.ex, s.de)));
+  const maxVal = Math.max(1, ...stats.map((s) => Math.max(s.ex, s.de, s.wa)));
 
   return (
     <div className="flex flex-col gap-4">
@@ -251,12 +262,12 @@ function MonthView({ year, month, records }) {
         <div className="flex items-end justify-around pt-6 pb-2" style={{ height: 180, borderBottom: `1px solid ${LINE}` }}>
           {stats.map((s) => (
             <div key={s.id} className="flex flex-col items-center gap-2 h-full justify-end">
-              <div className="flex items-end gap-2 h-36">
+              <div className="flex items-end gap-1.5 h-36">
                 <div className="flex flex-col items-center gap-1 justify-end h-full">
-                  <span style={{ fontSize: 10, color: INK_SOFT, fontWeight: 600 }}>{s.ex}</span>
+                  <span style={{ fontSize: 9, color: INK_SOFT, fontWeight: 600 }}>{s.ex}</span>
                   <div
                     style={{
-                      width: 22,
+                      width: 18,
                       height: `${Math.max(6, (s.ex / maxVal) * 110)}px`,
                       background: EXERCISE.color,
                       borderRadius: "4px 4px 0 0",
@@ -265,12 +276,24 @@ function MonthView({ year, month, records }) {
                   />
                 </div>
                 <div className="flex flex-col items-center gap-1 justify-end h-full">
-                  <span style={{ fontSize: 10, color: INK_SOFT, fontWeight: 600 }}>{s.de}</span>
+                  <span style={{ fontSize: 9, color: INK_SOFT, fontWeight: 600 }}>{s.de}</span>
                   <div
                     style={{
-                      width: 22,
+                      width: 18,
                       height: `${Math.max(6, (s.de / maxVal) * 110)}px`,
                       background: DESSERT.color,
+                      borderRadius: "4px 4px 0 0",
+                      transition: "height 300ms ease",
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col items-center gap-1 justify-end h-full">
+                  <span style={{ fontSize: 9, color: INK_SOFT, fontWeight: 600 }}>{s.wa}</span>
+                  <div
+                    style={{
+                      width: 18,
+                      height: `${Math.max(6, (s.wa / maxVal) * 110)}px`,
+                      background: WATER.color,
                       borderRadius: "4px 4px 0 0",
                       transition: "height 300ms ease",
                     }}
@@ -293,6 +316,10 @@ function MonthView({ year, month, records }) {
             <span style={{ width: 10, height: 10, borderRadius: 2, background: DESSERT.color }} />
             Dessert
           </span>
+          <span className="flex items-center gap-1.5">
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: WATER.color }} />
+            Water
+          </span>
         </div>
       </div>
 
@@ -305,6 +332,7 @@ function MonthView({ year, month, records }) {
             </div>
             <StatLine icon={EXERCISE.Icon} color={EXERCISE.color} label="Exercise" total={s.ex} avg={s.exAvg} />
             <StatLine icon={DESSERT.Icon} color={DESSERT.color} label="Dessert" total={s.de} avg={s.deAvg} />
+            <StatLine icon={WATER.Icon} color={WATER.color} label="Water" total={s.wa} avg={s.waAvg} />
           </div>
         ))}
       </div>
@@ -370,7 +398,7 @@ export default function App() {
     setRecords((prev) => {
       const next = { ...prev };
       const dayRec = { ...(next[dateKey] || {}) };
-      const memberRec = { ...(dayRec[memberId] || { exercise: false, dessert: false }) };
+      const memberRec = { ...(dayRec[memberId] || { exercise: false, dessert: false, water: false }) };
       const nextVal = !memberRec[catKey];
       memberRec[catKey] = nextVal;
       dayRec[memberId] = memberRec;
