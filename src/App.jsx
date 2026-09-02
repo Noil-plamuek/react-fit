@@ -204,7 +204,7 @@ function WeekSummary({ weekDates, records }) {
             <div className="flex flex-col gap-1.5">
               <BarRow icon={EXERCISE.Icon} color={EXERCISE.color} value={r.ex} max={7} suffix="workouts" />
               <BarRow icon={DESSERT.Icon} color={DESSERT.color} value={r.de} max={7} suffix="desserts" />
-              <BarRow icon={WATER.Icon} color={WATER.color} value={r.wa} max={7} suffix="water days" />
+              <BarRow icon={WATER.Icon} color={WATER.color} value={r.wa} max={7} suffix="water" />
             </div>
           </div>
         ))}
